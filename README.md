@@ -268,6 +268,8 @@ Neural networks were also tested but **underperformed compared to classical ML**
 - CNN+LSTM may fail to capture **subtle motion differences** across short sampled frames.
 - Hierarchical temporal patterns are harder to learn with few samples.
 
+<img width="600" height="541" alt="image" src="https://github.com/user-attachments/assets/bbb47480-44a9-4f0c-a125-1278260ef686" />
+
 ### Key Insight
 - Neural networks excel with **large datasets** where hierarchical feature learning is possible.
 - For **small, engineered datasets**, classical ML outperforms due to **structured and informative features**.
