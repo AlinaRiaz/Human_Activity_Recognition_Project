@@ -176,17 +176,6 @@ This project intentionally aligns feature engineering with classical ML strength
 
 ## 10. Why These Specific Models Were Chosen
 
-### 10.1 Logistic Regression
-
-*Why used:*
-- Serves as a baseline
-- Tests linear separability of features
-- Highly interpretable
-
-*What it tells us:*
-- Whether motion features alone are sufficient for linear classification
-
----
 
 ### 10.2 Support Vector Machine (SVM)
 
@@ -201,6 +190,7 @@ This project intentionally aligns feature engineering with classical ML strength
 - Focuses on support vectors (critical samples)
 
 ---
+<img width="404" height="298" alt="image" src="https://github.com/user-attachments/assets/d47a3cba-644e-40f5-b790-65f2b81ffbd7" />
 
 ### 10.3 Random Forest
 
@@ -215,6 +205,7 @@ This project intentionally aligns feature engineering with classical ML strength
 - Provides feature importance scores
 
 ---
+<img width="397" height="298" alt="image" src="https://github.com/user-attachments/assets/561af018-628f-4b7e-bfb5-50c5acac8073" />
 
 ## 11. Model Differences: A Comparative View
 
@@ -261,17 +252,44 @@ This ensures performance is evaluated fairly, especially under class imbalance.
 These limitations are accepted given the project scope and objectives.
 
 ---
+## 14. Neural Networks and Their Limitations in This Context
+
+Neural networks were also tested but **underperformed compared to classical ML**. Key reasons include:
+
+### Input Complexity vs Dataset Size
+- CNNs or CNN+LSTM models have **millions of parameters**.
+- **Small or imbalanced dataset** leads to overfitting and unstable learning.
+
+### Feature Learning vs Feature Engineering
+- Networks learn features automatically from raw frames.
+- **Limited data** results in noisy, ineffective features that do not generalize well.
+
+### Temporal Modeling Challenges
+- CNN+LSTM may fail to capture **subtle motion differences** across short sampled frames.
+- Hierarchical temporal patterns are harder to learn with few samples.
+
+### Key Insight
+- Neural networks excel with **large datasets** where hierarchical feature learning is possible.
+- For **small, engineered datasets**, classical ML outperforms due to **structured and informative features**.
+
+---
+<img width="543" height="102" alt="image" src="https://github.com/user-attachments/assets/b57839fb-7af9-46bc-977a-b621461882eb" />
+
 
 ## 15. Conclusion
 
-This project demonstrates that *thoughtful feature engineering, combined with **appropriate classical machine learning models*, can effectively solve Human Activity Recognition tasks.
+Feature-engineered classical ML provides:
 
-The approach prioritizes:
-- Interpretability
-- Efficiency
-- Theoretical justification
-- Academic rigor
+- **Interpretability**
+- **Efficiency**
+- **Stable training**
+- **Academic rigor**
 
-This makes the system suitable for coursework evaluation and as a foundation for future deep learning extensions.
+Neural networks remain a **future extension**, requiring:
 
----
+- More data
+- Carefully tuned architectures
+- Better temporal modeling
+
+**Summary:** This project demonstrates that **feature engineering + classical ML** can effectively solve Human Activity Recognition (HAR), providing a **robust baseline** for future deep learning experiments.
+
