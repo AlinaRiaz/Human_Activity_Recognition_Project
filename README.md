@@ -1,6 +1,6 @@
 # Human Activity Recognition (HAR) System  
 ## Feature-Engineered Classical Machine Learning Approach
-
+*Data Set Used* : matthewjansen/ucf101-action-recognition
 ---
 
 ## 1. Problem Statement
