@@ -1,265 +1,277 @@
-# Human_Activity_Recognition_Project
-# Human Activity Recognition (HAR) — 10-Class Movement Subset  
-*Classical ML pipeline with compact video features (10 features per video)*
-
-> This repository implements a Human Activity Recognition system using *classical machine learning* trained on a *small, interpretable feature set* extracted directly from video clips.  
-> The pipeline automatically selects *up to 10 “general movement” classes* (e.g., walk/run/jump-like actions) that actually exist in the dataset, extracts *motion + intensity + temporal* features from sampled frames, and produces ready-to-train datasets for ML models (SVM / Random Forest / Logistic Regression, etc.).
+# Human Activity Recognition (HAR) System  
+## Feature-Engineered Classical Machine Learning Approach
 
 ---
 
-## Table of Contents
-1. [Project Goal](#project-goal)  
-2. [What This Code Does](#what-this-code-does)  
-3. [Why We Use a 10-Class Subset](#why-we-use-a-10-class-subset)  
-4. [Dataset Assumptions](#dataset-assumptions)  
-5. [End-to-End Pipeline Overview](#end-to-end-pipeline-overview)  
-6. [Automatic Class Selection (Movement Keyword Filter)](#automatic-class-selection-movement-keyword-filter)  
-7. [Video Frame Sampling](#video-frame-sampling)  
-8. [Feature Extraction (10 Features)](#feature-extraction-10-features)  
-9. [Building X and y (Training Data)](#building-x-and-y-training-data)  
-10. [Parameter-by-Parameter Justification](#parameter-by-parameter-justification)  
-11. [Reproducibility and Fairness Notes](#reproducibility-and-fairness-notes)  
-12. [How to Run](#how-to-run)  
-13. [Common Errors and Fixes](#common-errors-and-fixes)  
-14. [How to Extend This Project](#how-to-extend-this-project)  
+## 1. Problem Statement
+
+Human Activity Recognition (HAR) aims to identify human actions from visual or sensor data. In this project, the task is to classify *general human movement activities* from video clips using *classical machine learning models*.
+
+Instead of using end-to-end deep learning, this project deliberately adopts a *feature-engineering-first approach*, where meaningful motion-based features are extracted from video data and then used to train classical classifiers.
 
 ---
 
-## Project Goal
-The objective is to build a *Human Activity Recognition* system that:
-- Recognizes actions from videos (movement-based activities)
-- Trains a *classical ML model* using compact, interpretable features
-- Avoids high-dimensional handcrafted feature vectors (like 101 features) by using only *10 meaningful features*
-- Works reliably inside *Google Colab* with a dataset already loaded into dataframes (train_df, val_df, test_df)
+## 2. Why Feature Engineering Was Used
+
+### 2.1 Motivation for Feature Engineering
+
+Feature engineering was chosen over direct end-to-end deep learning for the following reasons:
+
+1. *Interpretability*  
+   Engineered features allow us to understand what aspects of the video contribute to classification (motion, intensity, temporal variation), which is not easily achievable with deep neural networks.
+
+2. *Computational Efficiency*  
+   Deep learning models require large datasets and powerful GPUs. Feature-engineered classical ML models:
+   - Train faster
+   - Require less memory
+   - Are suitable for Google Colab environments
+
+3. *Dataset Constraints*  
+   Many action recognition datasets:
+   - Have limited samples per class
+   - Are imbalanced
+   - Contain noisy or diverse actions
+
+   Classical ML models perform more reliably under these conditions when paired with good features.
+
+4. *Academic Clarity*  
+   Feature engineering allows clear theoretical justification of design choices, which is important in coursework-based evaluation.
 
 ---
 
-## What This Code Does
-This project provides a clean pipeline that:
+## 3. Design Principles Behind Feature Engineering
 
-1. *Finds available labels* in the dataset (train_df["label"])
-2. *Automatically selects up to 10 movement-related classes* based on keywords (walk/run/jump/etc.)
-3. *Filters* train_df, val_df, test_df to only those selected classes
-4. For each video:
-   - Samples a fixed number of frames (NUM_FRAMES)
-   - Converts frames to grayscale and resizes them
-   - Computes 10 compact features:
-     - 2 intensity statistics
-     - 4 motion statistics (optical flow magnitude)
-     - 4 temporal statistics (per-frame mean trends)
-5. Builds:
-   - X_train, y_train
-   - X_val, y_val
-   - X_test, y_test
+The feature engineering strategy follows these principles:
 
-These arrays are then ready to be used in classical ML training (e.g., SVM, RandomForest).
+- *Compactness:* Avoid large, redundant feature vectors (e.g., 101 handcrafted features)
+- *Relevance:* Extract features directly related to human motion
+- *Consistency:* Produce fixed-length vectors for variable-length videos
+- *Simplicity:* Use well-understood computer vision techniques
+
+The final design results in *exactly 10 features per video*.
 
 ---
 
-## Why We Use a 10-Class Subset
-Large action datasets (e.g., sports/action datasets) often have *many classes*, and many of them are complex sports-specific actions.
+## 4. Why Video Frame Sampling Is Necessary
 
-For a general “movement recognition” objective, we restrict to a smaller set because:
-- *Faster training and debugging*
-- *Less class confusion*
-- Better focus on *coarse human movement categories*
-- Fewer classes often yields more reliable baselines during development
-- Reduces imbalance and complexity when dataset is large
+Videos differ in length (number of frames). Classical ML models require a *fixed-size input vector*, so temporal normalization is required.
 
-This choice is especially useful when your goal is “walking vs running vs jumping” type recognition rather than fine-grained sports taxonomy.
+### Sampling Strategy
+- Uniformly sample NUM_FRAMES = 8 frames across the entire video
+- This ensures:
+  - Coverage of the full action duration
+  - Temporal consistency across samples
+  - Reduced computational load
 
----
-
-## Dataset Assumptions
-The pipeline assumes these objects already exist:
-
-- train_df, val_df, test_df are pandas DataFrames
-- They contain at least two important columns:
-  - label → activity name / class label
-  - clip_path_resolved → full path to the corresponding video file
-
-Example row format:
-
-| clip_path_resolved | label |
-|---|---|
-| /content/data/v1.mp4 | WalkingWithDog |
-
-If your dataset uses different column names, update the constants:
-- LABEL_COL
-- PATH_COL
+*Why not use all frames?*
+- Redundant information
+- Increased noise
+- Significantly higher computation without proportional performance gain
 
 ---
 
-## End-to-End Pipeline Overview
-The workflow looks like this:
+## 5. Why Grayscale and Spatial Resizing Were Used
 
-1. *Read unique labels from training set*
-2. *Select a 10-class subset*
-3. *Filter train/val/test*
-4. *Extract features video-by-video*
-5. *Build numpy arrays for ML training*
+### Grayscale Conversion
+Human activity recognition is largely driven by *motion patterns*, not color information. Grayscale:
+- Reduces sensitivity to lighting conditions
+- Simplifies optical flow computation
+- Lowers dimensionality
 
----
-
-## Automatic Class Selection (Movement Keyword Filter)
-We do *not hardcode* class names like "Walking Upstairs" because many datasets do not contain those exact labels.
-
-Instead, we:
-- Read *all labels* from dataset
-- Search labels for movement-related words like:
-  - walk, run, jump, climb, sit, stand, etc.
-- Select the first 10 matches
-
-### Why keyword-based selection?
-Because class naming differs across datasets:
-- WalkingWithDog
-- JumpingJack
-- RunSprint
-- CliffDiving
-
-Keyword matching adapts automatically without manual guessing.
+### Spatial Resizing (112×112)
+- Optical flow computation is expensive at high resolution
+- 112×112 preserves motion structure while remaining efficient
+- Ensures stable and fast feature extraction
 
 ---
 
-## Video Frame Sampling
-Videos have variable length (different number of frames).  
-Classical ML requires a *fixed-size feature vector* per sample, so we need consistent sampling.
+## 6. Why Optical Flow Was Chosen for Motion Representation
 
-### Sampling strategy
-- Use cv2.VideoCapture to open video
-- Find total frames using:
-  - cv2.CAP_PROP_FRAME_COUNT
-- Sample indices uniformly using:
-  - np.linspace(0, total-1, NUM_FRAMES)
+Optical flow estimates pixel-wise motion between frames and is a classical, well-established method for motion analysis.
 
-### Why uniform sampling?
-Uniform sampling ensures:
-- We represent the *whole video*, not only the beginning
-- We reduce computation while still capturing motion patterns
-- The model sees consistent temporal coverage
+### Why Optical Flow Is Appropriate for HAR
+- Human actions are defined by *movement*
+- Optical flow captures:
+  - Speed of motion
+  - Intensity of movement
+  - Temporal dynamics
 
-### Why grayscale?
-We convert frames to grayscale because:
-- Activity recognition (movement) often depends more on motion than color
-- Grayscale reduces computation
-- It reduces noise from lighting/color variations
-- Improves speed while keeping motion meaningful
-
-### Why resize frames?
-We resize to FRAME_SIZE = (112,112) because:
-- Optical flow is expensive at high resolution
-- 112×112 is a balanced tradeoff:
-  - fast computation
-  - enough detail to detect motion direction/magnitude
+### Why Only Magnitude (Not Direction)?
+- Direction varies due to camera viewpoint
+- Magnitude is:
+  - More robust
+  - Rotation-invariant
+  - Strongly correlated with action intensity
 
 ---
 
-## Feature Extraction (10 Features)
-The goal was explicitly to *avoid 101 features* and reduce to a small set.
+## 7. Explanation of Each Feature (10 Features)
 
-We compute:
+### 7.1 Intensity Features (2)
 
-### (A) Intensity Features (2)
-1. mean_intensity  
-2. std_intensity
+| Feature | Purpose |
+|-------|--------|
+| Mean intensity | Global brightness / scene context |
+| Std intensity | Contrast and variability |
 
-*Why?*  
-These represent overall brightness/contrast and can correlate with scene characteristics. While not the most discriminative alone, they add useful baseline information at near-zero cost.
-
----
-
-### (B) Motion Features via Optical Flow Magnitude (4)
-We compute dense optical flow between consecutive frames using:
-
-cv2.calcOpticalFlowFarneback
-
-Then we convert flow vectors (dx,dy) to magnitude using:
-
-cv2.cartToPolar
-
-We summarize magnitudes using:
-3. mean_motion  
-4. std_motion  
-5. max_motion  
-6. min_motion
-
-*Why optical flow magnitude?*  
-Because action recognition is strongly linked to motion intensity:
-- Walking → moderate motion
-- Running → higher motion
-- Standing/Sitting → low motion
-- Jumping → bursts of motion (max values)
+These provide basic scene-level information at minimal cost.
 
 ---
 
-### (C) Temporal Statistics (4)
-We compute per-frame mean intensity across time:
-- per_frame_means = frames.mean(axis=(1,2))
+### 7.2 Motion Features (4)
 
-Then compute:
-7. temporal_mean  
-8. temporal_std  
-9. temporal_max  
-10. temporal_min
+| Feature | Purpose |
+|------|--------|
+| Mean motion | Average movement strength |
+| Std motion | Motion variability |
+| Max motion | Peak activity moments |
+| Min motion | Low-activity regions |
 
-*Why temporal stats?*  
-They capture global variation over time:
-- Some actions show stable patterns (standing)
-- Some show periodic change (walking/running)
-- Some show sudden changes (jumping)
+These are *core discriminators* for actions like walking vs running.
 
 ---
 
-## Building X and y (Training Data)
-We loop over each row in the dataframe:
+### 7.3 Temporal Features (4)
 
-- Read video path: row["clip_path_resolved"]
-- Check it exists: Path(vp).exists()
-- Extract feature vector
-- Append to arrays
+| Feature | Purpose |
+|------|--------|
+| Temporal mean | Overall activity level |
+| Temporal std | Consistency vs variability |
+| Temporal max | Action peaks |
+| Temporal min | Action inactivity |
 
-We skip:
-- Missing video files
-- Videos that cannot be read
-- Videos that produced fewer than 2 frames (not enough for optical flow)
-
-At the end:
-- X becomes a 2D numpy array: (N_samples, 10)
-- y becomes a 1D array: (N_samples,)
-
-We raise a clear error if X becomes empty:
-> "No samples extracted. Check video paths."
-
-This prevents silent failures.
+These capture how motion evolves over time.
 
 ---
 
-## Parameter-by-Parameter Justification
+## 8. Why We Did NOT Use 101 Features
 
-### NUM_FRAMES = 8
-- Controls how many frames are sampled per video
-- *Why 8?*
-  - very fast extraction
-  - enough to compute optical flow between consecutive frames (7 flow steps)
-  - good trade-off for Colab runtime
+Using very large handcrafted feature sets often leads to:
+- Redundant information
+- Curse of dimensionality
+- Overfitting
+- Poor generalization
 
-If you increase it:
-- accuracy may improve slightly
-- runtime increases
-
----
-
-### FRAME_SIZE = (112,112)
-- Controls resolution of frames used for optical flow
-- *Why 112×112?*
-  - faster than 224×224
-  - still captures motion patterns
-  - optical flow becomes much slower at high resolution
+By limiting features to *10 meaningful dimensions*, we:
+- Reduce noise
+- Improve model stability
+- Simplify interpretation
+- Enable faster hyperparameter tuning
 
 ---
 
-### Optical Flow Parameters (Farneback)
-```python
-cv2.calcOpticalFlowFarneback(prev, cur, None,
-    0.5, 3, 15, 3, 5, 1.2, 0
-)
+## 9. Why Classical Machine Learning Models Were Used
+
+### 9.1 Rationale for Classical ML
+
+Classical ML models are suitable when:
+- Feature dimensionality is low
+- Features are semantically meaningful
+- Dataset size is moderate
+- Interpretability is important
+
+This project intentionally aligns feature engineering with classical ML strengths.
+
+---
+
+## 10. Why These Specific Models Were Chosen
+
+### 10.1 Logistic Regression
+
+*Why used:*
+- Serves as a baseline
+- Tests linear separability of features
+- Highly interpretable
+
+*What it tells us:*
+- Whether motion features alone are sufficient for linear classification
+
+---
+
+### 10.2 Support Vector Machine (SVM)
+
+*Why used:*
+- Strong performance in low-dimensional spaces
+- Effective non-linear decision boundaries
+- Resistant to overfitting
+
+*How it differs from Logistic Regression:*
+- Maximizes margin instead of probability
+- Can model non-linear relationships using kernels
+- Focuses on support vectors (critical samples)
+
+---
+
+### 10.3 Random Forest
+
+*Why used:*
+- Captures complex non-linear interactions
+- Robust to noise and outliers
+- Does not assume linearity
+
+*How it differs from SVM:*
+- Ensemble of decision trees
+- Learns feature interactions automatically
+- Provides feature importance scores
+
+---
+
+## 11. Model Differences: A Comparative View
+
+| Aspect | Logistic Regression | SVM | Random Forest |
+|------|-------------------|-----|--------------|
+| Linearity | Linear | Linear / Non-linear | Non-linear |
+| Feature scaling | Required | Required | Not required |
+| Interpretability | High | Medium | Medium |
+| Overfitting risk | Low | Medium | Low |
+| Handles interactions | No | Limited | Yes |
+
+---
+
+## 12. Why Feature Engineering + These Models Work Well Together
+
+- Feature engineering extracts *motion-centric signals*
+- Logistic Regression checks linear separability
+- SVM refines separation using margins/kernels
+- Random Forest captures non-linear interactions
+
+This layered approach provides *robust validation of feature quality*.
+
+---
+
+## 13. Evaluation Strategy
+
+Multiple metrics are used:
+- Accuracy
+- Precision
+- Recall
+- F1-Score
+- Confusion Matrix
+
+This ensures performance is evaluated fairly, especially under class imbalance.
+
+---
+
+## 14. Limitations
+
+- Optical flow is sensitive to camera motion
+- Compact features may miss subtle gestures
+- Classical ML cannot learn hierarchical spatio-temporal representations
+
+These limitations are accepted given the project scope and objectives.
+
+---
+
+## 15. Conclusion
+
+This project demonstrates that *thoughtful feature engineering, combined with **appropriate classical machine learning models*, can effectively solve Human Activity Recognition tasks.
+
+The approach prioritizes:
+- Interpretability
+- Efficiency
+- Theoretical justification
+- Academic rigor
+
+This makes the system suitable for coursework evaluation and as a foundation for future deep learning extensions.
+
+---
